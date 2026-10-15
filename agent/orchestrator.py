@@ -104,7 +104,12 @@ async def ask_agent(question: str) -> str:
                             arguments = json.loads(
                                 tool_call.function.arguments
                             )
-                            name = arguments.get("name", "")
+                            if not isinstance(arguments, dict):
+                                raise ValueError("Tool arguments must be a JSON object.")
+                            if set(arguments) != {"name"}:
+                                raise ValueError("Only the 'name' argument is allowed.")
+
+                            name = arguments["name"]
                             if not isinstance(name, str) or not name.strip():
                                 raise ValueError("A non-empty process name is required.")
 
