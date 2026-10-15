@@ -3,6 +3,8 @@ from mcp.server.fastmcp import FastMCP
 from tools.process_lookup import find_process
 from tools.process_tree import get_process_tree
 
+from tools.system_stats import get_system_stats
+
 mcp = FastMCP("process-ancestry-agent")
 
 
@@ -20,6 +22,12 @@ def trace_process_ancestry(name: str) -> list[dict]:
     if not name or not name.strip():
         raise ValueError("Process name cannot be empty.")
     return get_process_tree(name.strip())
+
+
+@mcp.tool()
+def system_stats() -> dict:
+    """Get read-only CPU load, memory, and uptime statistics."""
+    return get_system_stats()
 
 
 if __name__ == "__main__":

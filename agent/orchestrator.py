@@ -13,6 +13,7 @@ You are a Linux process ancestry assistant.
 You can use these tools:
 - search_processes: find Linux processes by name.
 - trace_process_ancestry: find matching processes and their parent ancestry.
+- system_stats: return read-only CPU load, memory, and uptime statistics.
 
 Use a tool when the user asks about actual running processes.
 Never invent PIDs or process information.
@@ -53,6 +54,20 @@ TOOLS = [
                     }
                 },
                 "required": ["name"],
+                "additionalProperties": False,
+            },
+        },
+    },
+
+    {
+        "type": "function",
+        "function": {
+            "name": "system_stats",
+            "description": "Get read-only Linux CPU load, memory, and uptime statistics.",
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
                 "additionalProperties": False,
             },
         },
@@ -98,6 +113,7 @@ async def ask_agent(question: str) -> str:
                     if tool_name not in {
                         "search_processes",
                         "trace_process_ancestry",
+                        "system_stats",
                     }:
                         tool_result = {"error": "Unknown tool"}
                     else:
@@ -106,26 +122,39 @@ async def ask_agent(question: str) -> str:
                                 tool_call.function.arguments
                             )
                             if not isinstance(arguments, dict):
-                                raise ValueError("Tool arguments must be a JSON object.")
-                            if set(arguments) != {"name"}:
-                                raise ValueError("Only the 'name' argument is allowed.")
+                                raise ValueError(
+                                    "Tool arguments must be a JSON object."
+                                )
 
-                            name = arguments["name"]
-                            if not isinstance(name, str) or not name.strip():
-                                raise ValueError("A non-empty process name is required.")
+                            if tool_name == "system_stats":
+                                if arguments != {}:
+                                    raise ValueError(
+                                        "system_stats accepts no arguments."
+                                    )
+                                call_arguments = {}
+                            else:
+                                if set(arguments) != {"name"}:
+                                    raise ValueError(
+                                        "Only the 'name' argument is allowed."
+                                    )
+                                name = arguments["name"]
+                                if not isinstance(name, str) or not name.strip():
+                                    raise ValueError(
+                                        "A non-empty process name is required."
+                                    )
+                                call_arguments = {"name": name.strip()}
 
                             approved = confirm_tool_call(
-                                tool_name, {"name": name.strip()}
+                                tool_name, call_arguments
                             )
                             if not approved:
                                 tool_result = {
                                     "status": "rejected",
-                                    "message": "Tool call cancelled by user."
+                                    "message": "Tool call cancelled by user.",
                                 }
                             else:
                                 result = await session.call_tool(
-                                    tool_name,
-                                    {"name": name.strip()},
+                                    tool_name, call_arguments
                                 )
                                 if result.isError:
                                     tool_result = {
@@ -141,7 +170,7 @@ async def ask_agent(question: str) -> str:
                             tool_result = {"error": str(exc)}
                         except Exception:
                             tool_result = {
-                                "error": "The process tool call failed."
+                                "error": "The tool call failed."
                             }
 
                     messages.append(

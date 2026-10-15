@@ -25,6 +25,10 @@ async def main():
             )
             print(result)
 
+            print("\\nTesting system_stats...")
+            stats = await session.call_tool("system_stats", {})
+            print(stats)
+
 
 if __name__ == "__main__":
     asyncio.run(main())
