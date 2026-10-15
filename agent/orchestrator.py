@@ -5,6 +5,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 from agent.llm_client import client, MODEL
+from tools.guardrails import confirm_tool_call
 
 
 SYSTEM_PROMPT = """
@@ -113,21 +114,29 @@ async def ask_agent(question: str) -> str:
                             if not isinstance(name, str) or not name.strip():
                                 raise ValueError("A non-empty process name is required.")
 
-                            result = await session.call_tool(
-                                tool_name,
-                                {"name": name.strip()},
+                            approved = confirm_tool_call(
+                                tool_name, {"name": name.strip()}
                             )
-
-                            if result.isError:
+                            if not approved:
                                 tool_result = {
-                                    "error": "The MCP tool returned an error."
+                                    "status": "rejected",
+                                    "message": "Tool call cancelled by user."
                                 }
                             else:
-                                tool_result = [
-                                    item.text
-                                    for item in result.content
-                                    if hasattr(item, "text")
-                                ]
+                                result = await session.call_tool(
+                                    tool_name,
+                                    {"name": name.strip()},
+                                )
+                                if result.isError:
+                                    tool_result = {
+                                        "error": "The MCP tool returned an error."
+                                    }
+                                else:
+                                    tool_result = [
+                                        item.text
+                                        for item in result.content
+                                        if hasattr(item, "text")
+                                    ]
                         except (ValueError, TypeError, json.JSONDecodeError) as exc:
                             tool_result = {"error": str(exc)}
                         except Exception:
