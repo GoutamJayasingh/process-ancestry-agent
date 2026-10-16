@@ -2,10 +2,12 @@ from agent.orchestrator import run_question
 
 
 def main():
+    print(f"\nAgent: {answer}")
+
+    print("\n" + "=" * 55)
+    print(" AGENT RESPONSE")
     print("=" * 55)
-    print("  Process Tree & Ancestry Agent")
-    print("  Powered by Groq + MCP")
-    print("Type 'exit' or 'quit' to stop.")
+    print(answer.strip())
     print("=" * 55)
 
     while True:
