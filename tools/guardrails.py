@@ -1,23 +1,42 @@
 import re
 
+
 DANGEROUS_PATTERNS = [
-    r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*f\b",
-    r"\bsudo\b",
-    r"\bmkfs(?:\.\w+)?\b",
-    r"\bdd\s+if=",
-    r">\s*/dev/",
-    r"\bshutdown\b",
-    r"\breboot\b",
+    # Recursive and force flags, including separate -r and -f options.
+    re.compile(
+        r"\brm\b"
+        r"(?=[^;\n]*(?:\s|^)-[^\s;]*r)"
+        r"(?=[^;\n]*(?:\s|^)-[^\s;]*f)",
+        re.IGNORECASE,
+    ),
+
+    # Elevated privileges.
+    re.compile(r"\bsudo\b", re.IGNORECASE),
+
+    # Filesystem formatting.
+    re.compile(r"\bmkfs(?:\.[a-z0-9_+-]+)?\b", re.IGNORECASE),
+
+    # Direct writes to device paths through dd.
+    re.compile(
+        r"\bdd\b(?=[^;\n]*\bof\s*=\s*['\"]?/dev/)",
+        re.IGNORECASE,
+    ),
+
+    # Output redirection to device paths.
+    re.compile(r">\s*['\"]?/dev/", re.IGNORECASE),
+
+    # System shutdown and reboot.
+    re.compile(r"\bshutdown\b", re.IGNORECASE),
+    re.compile(r"\breboot\b", re.IGNORECASE),
 ]
 
+
 def is_dangerous_command(command: str) -> bool:
+    """Flag invalid inputs and configured risky command patterns."""
     if not isinstance(command, str) or not command.strip():
         return True
-    return any(
-        re.search(pattern, command, re.IGNORECASE)
-        for pattern in DANGEROUS_PATTERNS
-    )
 
+    return any(pattern.search(command) for pattern in DANGEROUS_PATTERNS)
 def confirm_tool_call(tool_name: str, arguments: dict) -> bool:
     allowed_tools = {
         "search_processes",

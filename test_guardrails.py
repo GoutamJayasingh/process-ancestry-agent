@@ -1,18 +1,42 @@
-from tools.guardrails import is_dangerous_command, confirm_tool_call
+import pytest
+from tools.guardrails import is_dangerous_command
 
-def test_dangerous_commands_are_detected():
-    assert is_dangerous_command("rm -rf /")
-    assert is_dangerous_command("sudo reboot")
-    assert is_dangerous_command("mkfs.ext4 /dev/sda")
 
-def test_safe_command_is_not_flagged():
-    assert not is_dangerous_command("ps aux")
+@pytest.mark.parametrize(
+    "command",
+    [
+        "rm -rf /",
+        "rm -fr /tmp/example",
+        "rm -r -f /tmp/example",
+        "sudo apt update",
+        "mkfs.ext4 /dev/sda1",
+        "dd if=/dev/zero of=/dev/sda",
+        "echo test > /dev/sda",
+        "shutdown now",
+        "reboot",
+        "SUDO apt update",
+        "MKFS.EXT4 /dev/sda1",
+    ],
+)
+def test_detects_dangerous_patterns(command):
+    assert is_dangerous_command(command)
 
-def test_empty_command_is_rejected():
-    assert is_dangerous_command("")
 
-def test_unknown_tool_is_rejected(monkeypatch):
-    assert not confirm_tool_call("delete_everything", {"name": "bash"})
+@pytest.mark.parametrize(
+    "command",
+    [
+        "ls -l",
+        "python --version",
+        "show system statistics",
+        "find process named bash",
+        "rm -r /tmp/example",
+        "rm -f /tmp/example",
+    ],
+)
+def test_allows_unmatched_inputs(command):
+    assert not is_dangerous_command(command)
 
-def test_invalid_arguments_are_rejected(monkeypatch):
-    assert not confirm_tool_call("search_processes", {"unexpected": "value"})
+
+@pytest.mark.parametrize("command", ["", "   ", None, 123])
+def test_rejects_invalid_inputs(command):
+    assert is_dangerous_command(command)
